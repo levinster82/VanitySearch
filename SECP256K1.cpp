@@ -106,7 +106,6 @@ void Secp256K1::Check() {
 
   printf("Check Generator :");
 
-  bool ok = true;
   int i = 0;
   while(i < 256*32 && EC(GTable[i])) {
     i++;

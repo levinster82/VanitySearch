@@ -17,24 +17,7 @@
 #   CCAP      - Compute capability (e.g., 75, 86, 89)
 #---------------------------------------------------------------------
 
-SRC = Base58.cpp IntGroup.cpp main.cpp Random.cpp \
-      Timer.cpp Int.cpp IntMod.cpp Point.cpp SECP256K1.cpp \
-      Vanity.cpp GPU/GPUGenerate.cpp hash/ripemd160.cpp \
-      hash/sha256.cpp hash/sha512.cpp hash/ripemd160_sse.cpp \
-      hash/sha256_sse.cpp Bech32.cpp Wildcard.cpp
-
 OBJDIR = obj
-
-ifdef gpu
-
-OBJET = $(addprefix $(OBJDIR)/, \
-        Base58.o IntGroup.o main.o Random.o Timer.o Int.o \
-        IntMod.o Point.o SECP256K1.o Vanity.o GPU/GPUGenerate.o \
-        hash/ripemd160.o hash/sha256.o hash/sha512.o \
-        hash/ripemd160_sse.o hash/sha256_sse.o \
-        GPU/GPUEngine.o Bech32.o Wildcard.o)
-
-else
 
 OBJET = $(addprefix $(OBJDIR)/, \
         Base58.o IntGroup.o main.o Random.o Timer.o Int.o \
@@ -42,15 +25,17 @@ OBJET = $(addprefix $(OBJDIR)/, \
         hash/ripemd160.o hash/sha256.o hash/sha512.o \
         hash/ripemd160_sse.o hash/sha256_sse.o Bech32.o Wildcard.o)
 
+ifdef gpu
+OBJET += $(OBJDIR)/GPU/GPUEngine.o
 endif
 
 # Compiler settings
 CXX = g++
 
 # CUDA settings - auto-detect or use environment
-CUDA ?= /usr/local/cuda
+CUDA    ?= /usr/local/cuda
 CXXCUDA ?= $(CXX)
-NVCC = $(CUDA)/bin/nvcc
+NVCC     = $(CUDA)/bin/nvcc
 
 # Compute capability handling
 ifdef CCAP
@@ -68,37 +53,41 @@ endif
 # Compiler flags
 ifdef gpu
 ifdef debug
-CXXFLAGS = -DWITHGPU -m64 -mssse3 -Wno-write-strings -g -I. -I$(CUDA)/include
+CXXFLAGS  = -DWITHGPU -m64 -mssse3 -Wno-write-strings -std=c++17 -g -MMD -MP -I. -I$(CUDA)/include
 NVCCFLAGS = -G -maxrregcount=0 --ptxas-options=-v --compile --compiler-options -fPIC -ccbin $(CXXCUDA) -m64 -g -I$(CUDA)/include $(GENCODE)
 else
-CXXFLAGS = -DWITHGPU -m64 -mssse3 -Wno-write-strings -O3 -I. -I$(CUDA)/include
+CXXFLAGS  = -DWITHGPU -m64 -mssse3 -Wno-write-strings -std=c++17 -O3 -fno-strict-aliasing -MMD -MP -I. -I$(CUDA)/include
 NVCCFLAGS = -maxrregcount=0 --ptxas-options=-v --compile --compiler-options -fPIC -ccbin $(CXXCUDA) -m64 -O3 -I$(CUDA)/include $(GENCODE)
 endif
 LFLAGS = -lpthread -L$(CUDA)/lib64 -lcudart
 else
 ifdef debug
-CXXFLAGS = -m64 -mssse3 -Wno-write-strings -g -I.
+CXXFLAGS = -m64 -mssse3 -Wno-write-strings -std=c++17 -g -MMD -MP -I.
 else
-CXXFLAGS = -m64 -mssse3 -Wno-write-strings -O3 -I.
+CXXFLAGS = -m64 -mssse3 -Wno-write-strings -std=c++17 -O3 -fno-strict-aliasing -MMD -MP -I.
 endif
 LFLAGS = -lpthread
 endif
 
+DEPS = $(OBJET:.o=.d)
+
 #--------------------------------------------------------------------
+
+.PHONY: all clean info
+
+all: VanitySearch
 
 ifdef gpu
 $(OBJDIR)/GPU/GPUEngine.o: GPU/GPUEngine.cu GPU/GPUCompute.h GPU/GPUMath.h GPU/GPUHash.h GPU/GPUEngine.h StegoTarget.h
-	$(NVCC) $(NVCCFLAGS) -o $(OBJDIR)/GPU/GPUEngine.o -c GPU/GPUEngine.cu
+	$(NVCC) $(NVCCFLAGS) -o $@ -c $<
 endif
 
-$(OBJDIR)/%.o : %.cpp
+$(OBJDIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
 # Header dependencies for stego mode
 $(OBJDIR)/main.o: main.cpp StegoTarget.h Vanity.h
 $(OBJDIR)/Vanity.o: Vanity.cpp Vanity.h StegoTarget.h
-
-all: VanitySearch
 
 VanitySearch: $(OBJET)
 	@echo Making VanitySearch...
@@ -106,20 +95,14 @@ VanitySearch: $(OBJET)
 
 $(OBJET): | $(OBJDIR) $(OBJDIR)/GPU $(OBJDIR)/hash
 
-$(OBJDIR):
-	mkdir -p $(OBJDIR)
-
-$(OBJDIR)/GPU: $(OBJDIR)
-	cd $(OBJDIR) && mkdir -p GPU
-
-$(OBJDIR)/hash: $(OBJDIR)
-	cd $(OBJDIR) && mkdir -p hash
+$(OBJDIR) $(OBJDIR)/GPU $(OBJDIR)/hash:
+	mkdir -p $@
 
 clean:
 	@echo Cleaning...
-	@rm -f obj/*.o
-	@rm -f obj/GPU/*.o
-	@rm -f obj/hash/*.o
+	@rm -f $(OBJDIR)/*.o $(OBJDIR)/*.d
+	@rm -f $(OBJDIR)/GPU/*.o $(OBJDIR)/GPU/*.d
+	@rm -f $(OBJDIR)/hash/*.o $(OBJDIR)/hash/*.d
 	@rm -f VanitySearch
 
 # Show configuration
@@ -139,4 +122,4 @@ else
 	@echo "GPU Support: Disabled"
 endif
 
-.PHONY: all clean info
+-include $(DEPS)
