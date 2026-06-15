@@ -1609,7 +1609,6 @@ bool VanitySearch::hasStarted(TH_PARAM *p) {
 
 void VanitySearch::rekeyRequest(TH_PARAM *p) {
 
-  bool hasStarted = true;
   int total = nbCPUThread + nbGPUThread;
   for (int i = 0; i < total; i++)
   p[i].rekeyRequest = true;
