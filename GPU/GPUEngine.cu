@@ -78,6 +78,14 @@ __global__ void comp_keys_p2sh_pattern(uint32_t mode, prefix_t *pattern, uint64_
 
 }
 
+__global__ void comp_keys_bech32_pattern(uint32_t mode, prefix_t *pattern, uint64_t *keys, uint32_t maxFound, uint32_t *found) {
+
+  int xPtr = (blockIdx.x*blockDim.x) * 8;
+  int yPtr = xPtr + 4 * blockDim.x;
+  ComputeKeysBech32Pattern(mode, keys + xPtr, keys + yPtr, NULL, (uint32_t *)pattern, maxFound, found);
+
+}
+
 //#define FULLCHECK
 #ifdef FULLCHECK
 
@@ -464,12 +472,12 @@ bool GPUEngine::callKernel() {
     // P2PKH or BECH32
     if (hasPattern) {
       if (searchType == BECH32) {
-        // TODO
-        printf("GPUEngine: (TODO) BECH32 not yet supported with wildard\n");
-        return false;
+        comp_keys_bech32_pattern << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+          (searchMode, inputPrefix, inputKey, maxFound, outputPrefix);
+      } else {
+        comp_keys_pattern << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+          (searchMode, inputPrefix, inputKey, maxFound, outputPrefix);
       }
-      comp_keys_pattern << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
-        (searchMode, inputPrefix, inputKey, maxFound, outputPrefix);
     } else {
       if (searchMode == SEARCH_COMPRESSED) {
         comp_keys_comp << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >

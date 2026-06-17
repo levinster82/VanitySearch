@@ -514,6 +514,163 @@ __device__ void ComputeKeysP2SH(uint32_t mode, uint64_t *startx, uint64_t *start
 }
 
 // -----------------------------------------------------------------------------------------
+// Bech32 (P2WPKH) wildcard pattern matching — always compressed
+
+#define CHECK_POINT_BECH32(_h,incr,endo,mode) CheckPoint(_h,incr,endo,mode,prefix,lookup32,maxFound,out,BECH32)
+
+__device__ __noinline__ void CheckHashBech32Comp(prefix_t *prefix, uint64_t *px, uint8_t isOdd, int32_t incr,
+    uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
+
+  uint32_t h[5];
+  uint64_t pe1x[4];
+  uint64_t pe2x[4];
+
+  _GetHash160Comp(px, isOdd, (uint8_t *)h);
+  CHECK_POINT_BECH32(h, incr, 0, true);
+  _ModMult(pe1x, px, _beta);
+  _GetHash160Comp(pe1x, isOdd, (uint8_t *)h);
+  CHECK_POINT_BECH32(h, incr, 1, true);
+  _ModMult(pe2x, px, _beta2);
+  _GetHash160Comp(pe2x, isOdd, (uint8_t *)h);
+  CHECK_POINT_BECH32(h, incr, 2, true);
+
+  _GetHash160Comp(px, !isOdd, (uint8_t *)h);
+  CHECK_POINT_BECH32(h, -incr, 0, true);
+  _GetHash160Comp(pe1x, !isOdd, (uint8_t *)h);
+  CHECK_POINT_BECH32(h, -incr, 1, true);
+  _GetHash160Comp(pe2x, !isOdd, (uint8_t *)h);
+  CHECK_POINT_BECH32(h, -incr, 2, true);
+
+}
+
+__device__ __noinline__ void CheckP2WPKHHash(uint32_t mode, prefix_t *prefix, uint64_t *px, uint64_t *py, int32_t incr,
+    uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
+  // P2WPKH requires compressed keys — mode is ignored
+  CheckHashBech32Comp(prefix, px, (uint8_t)(py[0] & 1), incr, lookup32, maxFound, out);
+}
+
+#define CHECK_PREFIX_BECH32(incr) CheckP2WPKHHash(mode, sPrefix, px, py, j*GRP_SIZE + (incr), lookup32, maxFound, out)
+
+__device__ void ComputeKeysBech32Pattern(uint32_t mode, uint64_t *startx, uint64_t *starty,
+    prefix_t *sPrefix, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
+
+  uint64_t dx[GRP_SIZE / 2 + 1][4];
+  uint64_t px[4];
+  uint64_t py[4];
+  uint64_t pyn[4];
+  uint64_t sx[4];
+  uint64_t sy[4];
+  uint64_t dy[4];
+  uint64_t _s[4];
+  uint64_t _p2[4];
+  char pattern[48];
+
+  __syncthreads();
+  Load256A(sx, startx);
+  Load256A(sy, starty);
+  Load256(px, sx);
+  Load256(py, sy);
+
+  if (sPrefix == NULL) {
+    memcpy(pattern, lookup32, 48);
+    lookup32 = (uint32_t *)pattern;
+  }
+
+  for (uint32_t j = 0; j < STEP_SIZE / GRP_SIZE; j++) {
+
+    uint32_t i;
+    for (i = 0; i < HSIZE; i++)
+      ModSub256(dx[i], Gx[i], sx);
+    ModSub256(dx[i],     Gx[i], sx);
+    ModSub256(dx[i + 1], _2Gnx, sx);
+
+    _ModInvGrouped(dx);
+
+    CHECK_PREFIX_BECH32(GRP_SIZE / 2);
+
+    ModNeg256(pyn, py);
+
+    for (i = 0; i < HSIZE; i++) {
+
+      __syncthreads();
+      Load256(px, sx);
+      Load256(py, sy);
+      ModSub256(dy, Gy[i], py);
+
+      _ModMult(_s, dy, dx[i]);
+      _ModSqr(_p2, _s);
+
+      ModSub256(px, _p2, px);
+      ModSub256(px, Gx[i]);
+
+      ModSub256(py, Gx[i], px);
+      _ModMult(py, _s);
+      ModSub256(py, Gy[i]);
+
+      CHECK_PREFIX_BECH32(GRP_SIZE / 2 + (i + 1));
+
+      __syncthreads();
+      Load256(px, sx);
+      ModSub256(dy, pyn, Gy[i]);
+
+      _ModMult(_s, dy, dx[i]);
+      _ModSqr(_p2, _s);
+
+      ModSub256(px, _p2, px);
+      ModSub256(px, Gx[i]);
+
+      ModSub256(py, px, Gx[i]);
+      _ModMult(py, _s);
+      ModSub256(py, Gy[i], py);
+
+      CHECK_PREFIX_BECH32(GRP_SIZE / 2 - (i + 1));
+
+    }
+
+    __syncthreads();
+    Load256(px, sx);
+    Load256(py, sy);
+    ModNeg256(dy, Gy[i]);
+    ModSub256(dy, py);
+
+    _ModMult(_s, dy, dx[i]);
+    _ModSqr(_p2, _s);
+
+    ModSub256(px, _p2, px);
+    ModSub256(px, Gx[i]);
+
+    ModSub256(py, px, Gx[i]);
+    _ModMult(py, _s);
+    ModSub256(py, Gy[i], py);
+
+    CHECK_PREFIX_BECH32(0);
+
+    i++;
+
+    __syncthreads();
+    Load256(px, sx);
+    Load256(py, sy);
+    ModSub256(dy, _2Gny, py);
+
+    _ModMult(_s, dy, dx[i]);
+    _ModSqr(_p2, _s);
+
+    ModSub256(px, _p2, px);
+    ModSub256(px, _2Gnx);
+
+    ModSub256(py, _2Gnx, px);
+    _ModMult(py, _s);
+    ModSub256(py, _2Gny);
+
+  }
+
+  __syncthreads();
+  Store256A(startx, px);
+  Store256A(starty, py);
+
+}
+
+// -----------------------------------------------------------------------------------------
 // Optimized kernel for compressed P2PKH address only
 
 #define CHECK_P2PKH_POINT(_incr) {                                             \
