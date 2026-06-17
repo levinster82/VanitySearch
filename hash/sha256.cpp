@@ -480,13 +480,11 @@ void sha256_65(unsigned char *input, unsigned char *digest) {
 
 void sha256_checksum(uint8_t *input, int length, uint8_t *checksum) {
 
-  uint32_t s[8];
-  uint8_t b[64];
-  memcpy(b,input,length);
-  memcpy(b + length, _sha256::pad, 56-length);
-  WRITEBE64(b + 56, length << 3);
-  _sha256::Transform2(s, b);
-  WRITEBE32(checksum,s[0]);
+  unsigned char h1[32];
+  unsigned char h2[32];
+  sha256(input, length, h1);
+  sha256(h1, 32, h2);
+  memcpy(checksum, h2, 4);
 
 }
 
