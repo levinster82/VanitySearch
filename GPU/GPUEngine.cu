@@ -706,9 +706,14 @@ bool GPUEngine::SetKeys(Point *p) {
     return false;
   }
 
-  // Don't call any kernel here - let the caller decide which kernel to launch
-  // The old code called callKernel() which would run the standard vanity kernel
-  // and corrupt the data for taproot/stego modes.
+  // For normal vanity mode, prime the pipeline by launching the first kernel.
+  // This matches VanitySearch behaviour where SetKeys calls callKernel().
+  // Stego/taproot/txid modes set stegoMode or txidMode and handle the first
+  // kernel themselves; their key-reconstruction code already compensates for
+  // the one-step delayed pipeline (finalKey.Sub(groupSize)).
+  if (!stegoMode && !txidMode) {
+    return callKernel();
+  }
   return true;
 
 }
