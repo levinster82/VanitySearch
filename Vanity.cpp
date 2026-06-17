@@ -55,6 +55,7 @@ VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,s
   this->searchType = -1;
   this->startPubKey = startPubKey;
   this->hasPattern = false;
+  this->onlyFull = false;
   this->caseSensitive = caseSensitive;
   this->startPubKeySpecified = !startPubKey.isZero();
 
@@ -72,6 +73,33 @@ VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,s
   for (int i = 0; i < (int)inputPrefixes.size() && !hasPattern; i++) {
     hasPattern = ((inputPrefixes[i].find('*') != std::string::npos) ||
                    (inputPrefixes[i].find('?') != std::string::npos) );
+  }
+
+  if (hasPattern) {
+    static const char *validB58   = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    static const char *validBech32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+    const std::string &pat = inputPrefixes[0];
+    bool isBech32 = pat.size() >= 4 &&
+                    tolower(pat[0]) == 'b' && tolower(pat[1]) == 'c' &&
+                    pat[2] == '1' && tolower(pat[3]) == 'q';
+    int dataStart = isBech32 ? 4 : 0;
+    for (int i = dataStart; i < (int)pat.size(); i++) {
+      char c = pat[i];
+      if (c == '*' || c == '?') continue;
+      if (isBech32) {
+        if (!strchr(validBech32, tolower(c))) {
+          printf("VanitySearch: invalid character '%c' in pattern \"%s\" (Bech32 allows: %s)\n",
+                 c, pat.c_str(), validBech32);
+          exit(1);
+        }
+      } else {
+        if (!strchr(validB58, c)) {
+          printf("VanitySearch: invalid character '%c' in pattern \"%s\" (0, I, O and l not allowed)\n",
+                 c, pat.c_str());
+          exit(1);
+        }
+      }
+    }
   }
 
   if (!hasPattern) {
@@ -1566,6 +1594,11 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
     }
 
   }
+
+  // If the GPU couldn't participate (e.g. Bech32 wildcard not yet implemented),
+  // keep this thread alive so isAlive() stays true and the CPU threads can finish.
+  while (!endOfSearch)
+    Timer::SleepMillis(100);
 
   delete[] keys;
   delete[] p;
