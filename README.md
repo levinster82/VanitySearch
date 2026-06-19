@@ -194,16 +194,16 @@ To build the CPU-only version:
 $ make all
 ```
 
-To build with CUDA support, set `CCAP` to your GPU's compute capability:
+To build with CUDA support, set `CCAP` to your GPU's compute capability (digits only, no dot):
 ```sh
-$ make gpu=1 CCAP=8.6 all
+$ make gpu=1 CCAP=86 all
 ```
 
-Common compute capabilities: `7.5` (Turing/RTX 20xx), `8.6` (Ampere/RTX 30xx), `8.9` (Ada/RTX 40xx). See the [NVIDIA CUDA GPU list](https://developer.nvidia.com/cuda-gpus) for your hardware.
+Common compute capabilities: `75` (Turing/RTX 20xx), `86` (Ampere/RTX 30xx), `89` (Ada/RTX 40xx). See the [NVIDIA CUDA GPU list](https://developer.nvidia.com/cuda-gpus) for your hardware.
 
 If CUDA is not installed in `/usr/local/cuda`, pass the path explicitly:
 ```sh
-$ make gpu=1 CCAP=8.6 CUDA=/path/to/cuda all
+$ make gpu=1 CCAP=86 CUDA=/path/to/cuda all
 ```
 
 Running VanitySearch (AMD Ryzen 9, 16 cores, GeForce RTX 3070):
@@ -249,7 +249,7 @@ $ ./docker/cpu/build.sh
 
 #### GPU
 ```sh
-$ env CCAP=5.2 CUDA=10.2 ./docker/cuda/build.sh
+$ env CCAP=52 CUDA=10.2 ./docker/cuda/build.sh
 ```
 
 # License
