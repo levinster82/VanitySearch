@@ -348,4 +348,5 @@ GPLv3 - See [LICENSE.txt](LICENSE.txt)
 ## Credits
 
 - Original VanitySearch by [Jean Luc Pons](https://github.com/JeanLucPons)
-- Mask/signature modes by [8144225309](https://github.com/8144225309)
+- Mask/signature/TXID modes by [8144225309](https://github.com/8144225309/VanityMask)
+- GCC 15 / CUDA 13 build fixes, wildcard GPU support for all address types (P2PKH, P2SH, Bech32) by [levinster82](https://github.com/levinster82/VanitySearch/tree/8144225309_vanitymask)
