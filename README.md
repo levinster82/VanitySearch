@@ -1,9 +1,9 @@
 # VanityMask
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![CUDA](https://img.shields.io/badge/CUDA-12.0%2B-green.svg)](https://developer.nvidia.com/cuda-toolkit)
+[![CUDA](https://img.shields.io/badge/CUDA-13%2B-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey.svg)]()
-[![Version](https://img.shields.io/badge/Version-1.20-orange.svg)](https://github.com/8144225309/VanityMask/releases)
+[![Version](https://img.shields.io/badge/Version-1.19-orange.svg)](https://github.com/8144225309/VanityMask/releases)
 
 GPU-accelerated tool for grinding Bitcoin **pubkey coordinates**, **signature R-values**, **transaction IDs**, and **vanity addresses**. Fork of [JeanLucPons/VanitySearch](https://github.com/JeanLucPons/VanitySearch).
 
@@ -30,7 +30,7 @@ Embed arbitrary bit patterns anywhere in your keys or TXIDs.
 - Generate vanity Bitcoin addresses (P2PKH, P2SH, BECH32)
 - Multi-GPU support with CUDA optimization
 - Split-key vanity generation for third-party searches
-- Wildcard pattern matching (`?` and `*`)
+- Wildcard pattern matching (`?` and `*`) — GPU-accelerated for P2PKH, P2SH, and Bech32
 - Case-insensitive search option
 
 ## Performance
@@ -197,8 +197,8 @@ Note: Update CUDA paths in `.vcxproj` if using a different CUDA version.
 # CPU-only build
 make all
 
-# GPU build (adjust CCAP for your GPU)
-make gpu=1 CCAP=8.9 all
+# GPU build (adjust CCAP for your GPU — digits only, no dot)
+make gpu=1 CCAP=89 all
 ```
 
 Edit `Makefile` to set CUDA paths:
@@ -232,7 +232,7 @@ docker run -it --rm --gpus all --network none vanitysearch -gpu -stop 1Test
 
 ```
 $ ./VanitySearch -gpu -stop 1Drew
-VanitySearch v1.20
+VanitySearch v1.19
 Difficulty: 264104224
 Search: 1Drew [Compressed]
 Start Fri Dec 19 12:00:00 2025
@@ -250,7 +250,7 @@ Priv (HEX): 0x123ABC...
 
 ```
 $ ./VanitySearch -gpu -mask -tx DEADBEEF --prefix 4
-VanitySearch v1.20
+VanitySearch v1.19
 === PUBKEY MASK MODE ===
 Target X:   deadbeef00000000000000000000000000000000000000000000000000000000
 Mask:       ffffffff00000000000000000000000000000000000000000000000000000000
@@ -271,7 +271,7 @@ Priv (HEX): 0x...
 $ ./VanitySearch -gpu -sig -tx DEADBEEF --prefix 4 \
     -z 0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20 \
     -d 0000000000000000000000000000000000000000000000000000000000000001
-VanitySearch v1.20
+VanitySearch v1.19
 === SIGNATURE R-VALUE GRINDING MODE ===
 Target R.x: deadbeef00000000000000000000000000000000000000000000000000000000
 Mask:       ffffffff00000000000000000000000000000000000000000000000000000000
